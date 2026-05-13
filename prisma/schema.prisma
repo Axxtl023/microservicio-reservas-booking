@@ -1,0 +1,75 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model categorias {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre      String    @unique @db.VarChar(100)
+  descripcion String?
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model proveedores {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre           String             @db.VarChar(100)
+  url_api_base     String
+  activo           Boolean?           @default(true)
+  created_at       DateTime?          @default(now()) @db.Timestamptz(6)
+  detalles_reserva detalles_reserva[]
+}
+
+model carritos {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_cliente    String?         @db.Uuid
+  estado        String?         @default("ACTIVO") @db.VarChar(20)
+  total         Decimal?        @default(0) @db.Decimal(10, 2)
+  created_at    DateTime?       @default(now()) @db.Timestamptz(6)
+  items_carrito items_carrito[]
+}
+
+model items_carrito {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_carrito          String?   @db.Uuid
+  id_producto_externo String?   @db.Uuid
+  cantidad            Int?      @default(1)
+  precio_unitario     Decimal   @db.Decimal(10, 2)
+  created_at          DateTime? @default(now()) @db.Timestamptz(6)
+  carritos            carritos? @relation(fields: [id_carrito], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model reservas {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_cliente       String?            @db.Uuid
+  total            Decimal            @db.Decimal(10, 2)
+  status           String?            @default("PENDIENTE") @db.VarChar(50)
+  fecha_reserva    DateTime?          @default(now()) @db.Timestamptz(6)
+  created_at       DateTime?          @default(now()) @db.Timestamptz(6)
+  detalles_reserva detalles_reserva[]
+}
+
+model detalles_reserva {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_reserva      String?      @db.Uuid
+  id_proveedor    String?      @db.Uuid
+  id_externo      String       @db.VarChar(255)
+  cantidad        Int
+  precio_unitario Decimal      @db.Decimal(10, 2)
+  created_at      DateTime?    @default(now()) @db.Timestamptz(6)
+  proveedores     proveedores? @relation(fields: [id_proveedor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reservas        reservas?    @relation(fields: [id_reserva], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model auditoria {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario String?  @db.Uuid
+  accion     String   @db.VarChar(100)
+  tabla      String   @db.VarChar(100)
+  detalles   String?
+  ip         String?  @db.VarChar(50)
+  fecha      DateTime @default(now()) @db.Timestamptz(6)
+}
