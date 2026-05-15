@@ -5,26 +5,36 @@ import type { IAuditoriaService } from '../interfaces/i-auditoria.service';
 import { IAUDITORIA_SERVICE } from '../interfaces/i-auditoria.service';
 import type { Request } from 'express';
 
+const METHOD_ACCION: Record<string, 'CREATE' | 'UPDATE' | 'DELETE'> = {
+  POST: 'CREATE',
+  PUT: 'UPDATE',
+  PATCH: 'UPDATE',
+  DELETE: 'DELETE',
+};
+
 @Injectable()
 export class AuditoriaInterceptor implements NestInterceptor {
   constructor(@Inject(IAUDITORIA_SERVICE) private readonly auditoriaService: IAuditoriaService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const req = context.switchToHttp().getRequest<Request & { user?: { sub?: string } }>();
-    const method = req.method;
+    const accion = METHOD_ACCION[req.method];
 
-    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-      return next.handle();
-    }
+    if (!accion) return next.handle();
 
     return next.handle().pipe(
       tap(() => {
         const tabla = req.path.split('/')[3] ?? 'unknown';
-        const accion = method;
         const idUsuario = req.user?.sub;
         const ip = req.ip;
+        const detalles =
+          req.method !== 'DELETE' && req.body && Object.keys(req.body as object).length > 0
+            ? JSON.stringify(req.body)
+            : undefined;
 
-        this.auditoriaService.registrar({ idUsuario, accion, tabla, ip }).catch(() => {});
+        this.auditoriaService
+          .registrar({ idUsuario, accion, tabla, detalles, ip })
+          .catch(() => {});
       }),
     );
   }
