@@ -10,7 +10,13 @@ export class AuditoriaService implements IAuditoriaService {
   constructor(@Inject(IUNIT_OF_WORK) private readonly uow: IUnitOfWork) {}
 
   async registrar(data: { idUsuario?: string; accion: string; tabla: string; detalles?: string; ip?: string }): Promise<void> {
-    await this.uow.auditoriaRepository.create(data);
+    await this.uow.auditoriaRepository.create({
+      id_usuario: data.idUsuario,
+      accion: data.accion,
+      tabla: data.tabla,
+      detalles: data.detalles,
+      ip: data.ip,
+    });
   }
 
   async findAll(page: number, limit: number): Promise<{ data: AuditoriaDataModel[]; total: number }> {
