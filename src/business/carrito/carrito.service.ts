@@ -17,8 +17,8 @@ export class CarritoService implements ICarritoService {
     return CarritoDataMapper.toDataModel(carrito);
   }
 
-  async addItem(idCliente: string, idProductoExterno: string, cantidad: number, precioUnitario: number): Promise<CarritoDataModel> {
-    const carrito = await this.uow.addItemToCarritoAtomic({ idCliente, idProductoExterno, cantidad, precioUnitario });
+  async addItem(idCliente: string, idProductoExterno: string, nombreProducto: string, cantidad: number, precioUnitario: number): Promise<CarritoDataModel> {
+    const carrito = await this.uow.addItemToCarritoAtomic({ idCliente, idProductoExterno, nombreProducto, cantidad, precioUnitario });
     return CarritoDataMapper.toDataModel(carrito);
   }
 

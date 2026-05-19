@@ -2,6 +2,7 @@ export interface ItemCarritoDataModel {
   id: string;
   idCarrito: string | null;
   idProductoExterno: string | null;
+  nombreProducto: string | null;
   cantidad: number;
   precioUnitario: number;
   createdAt: Date | null;

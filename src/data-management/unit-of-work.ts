@@ -30,7 +30,7 @@ export class UnitOfWork implements IUnitOfWork {
   ) {}
 
   async addItemToCarritoAtomic(data: AddItemAtomicData): Promise<CarritoConItems> {
-    const { idCliente, idProductoExterno, cantidad, precioUnitario } = data;
+    const { idCliente, idProductoExterno, nombreProducto, cantidad, precioUnitario } = data;
 
     return this.prisma.$transaction(async (tx) => {
       let carrito = await tx.carritos.findFirst({
@@ -56,7 +56,7 @@ export class UnitOfWork implements IUnitOfWork {
         });
       } else {
         await tx.items_carrito.create({
-          data: { id_carrito: carrito.id, id_producto_externo: idProductoExterno, cantidad, precio_unitario: precioUnitario },
+          data: { id_carrito: carrito.id, id_producto_externo: idProductoExterno, nombre_producto: nombreProducto, cantidad, precio_unitario: precioUnitario },
         });
       }
 

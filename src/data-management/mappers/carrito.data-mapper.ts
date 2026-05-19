@@ -13,6 +13,7 @@ export class CarritoDataMapper {
         id: item.id,
         idCarrito: item.id_carrito ?? null,
         idProductoExterno: item.id_producto_externo ?? null,
+        nombreProducto: item.nombre_producto ?? null,
         cantidad: item.cantidad ?? 1,
         precioUnitario: Number(item.precio_unitario),
         createdAt: item.created_at ?? null,

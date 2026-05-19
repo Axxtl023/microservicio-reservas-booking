@@ -3,6 +3,7 @@ import { IsString, IsInt, IsNumber, Min } from 'class-validator';
 
 export class AddItemDto {
   @ApiProperty() @IsString() idProductoExterno!: string;
+  @ApiProperty() @IsString() nombreProducto!: string;
   @ApiProperty() @IsInt() @Min(1) cantidad!: number;
   @ApiProperty() @IsNumber() @Min(0) precioUnitario!: number;
 }
@@ -14,6 +15,7 @@ export class UpdateItemCantidadDto {
 export class ItemCarritoResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() idProductoExterno!: string;
+  @ApiProperty() nombreProducto!: string;
   @ApiProperty() cantidad!: number;
   @ApiProperty() precioUnitario!: number;
 }
