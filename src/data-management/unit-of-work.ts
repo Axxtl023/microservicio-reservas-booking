@@ -178,4 +178,52 @@ export class UnitOfWork implements IUnitOfWork {
       return result;
     });
   }
+
+  async convertirCarritoAReservaGrpcAtomic(idCarrito: string, idCliente: string): Promise<ReservaConDetalles> {
+    return this.prisma.$transaction(async (tx) => {
+      const carrito = await tx.carritos.findUnique({
+        where: { id: idCarrito },
+        include: { items_carrito: true },
+      });
+      if (!carrito || carrito.estado !== 'ACTIVO') {
+        throw new InternalServerErrorException('Carrito no disponible para checkout');
+      }
+
+      const items = carrito.items_carrito;
+      if (items.length === 0) {
+        throw new InternalServerErrorException('El carrito está vacío');
+      }
+
+      const total = items.reduce(
+        (sum, item) => sum + (item.cantidad ?? 0) * Number(item.precio_unitario),
+        0,
+      );
+
+      const reserva = await tx.reservas.create({
+        data: { id_cliente: idCliente, total, status: 'PENDIENTE' },
+      });
+
+      for (const item of items) {
+        if (!item.id_producto_externo) continue;
+        await tx.detalles_reserva.create({
+          data: {
+            id_reserva: reserva.id,
+            id_externo: null,
+            cantidad: item.cantidad ?? 1,
+            precio_unitario: item.precio_unitario,
+          } as never,
+        });
+      }
+
+      await tx.carritos.update({ where: { id: idCarrito }, data: { estado: 'COMPLETADO' } });
+
+      const result = await tx.reservas.findUnique({
+        where: { id: reserva.id },
+        include: INCLUDE_DETALLES_PROVEEDOR,
+      });
+      if (!result) throw new InternalServerErrorException('Error al obtener reserva creada');
+
+      return result;
+    });
+  }
 }

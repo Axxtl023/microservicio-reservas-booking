@@ -5,6 +5,9 @@ export const INCLUDE_DETALLES_PROVEEDOR = {
     include: {
       proveedores: true,
     },
+    orderBy: {
+      created_at: 'asc',
+    },
   },
 } satisfies Prisma.reservasFindManyArgs['include'];
 

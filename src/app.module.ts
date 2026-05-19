@@ -38,6 +38,7 @@ import { IRESERVAS_SERVICE } from './business/reservas/interfaces/i-reservas.ser
 import { AuditoriaService } from './business/auditoria/auditoria.service';
 import { IAUDITORIA_SERVICE } from './business/auditoria/interfaces/i-auditoria.service';
 import { AuditoriaInterceptor } from './business/auditoria/interceptors/auditoria.interceptor';
+import { GrpcClientsModule } from './business/grpc-clients/grpc-clients.module';
 
 // ─── API ───────────────────────────────────────────────────────────────────────
 import { CategoriasController } from './api/controllers/v1/CategoriasController';
@@ -48,6 +49,7 @@ import { AuditoriaController } from './api/controllers/v1/AuditoriaController';
 
 @Module({
   imports: [
+    GrpcClientsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       useFactory: () => ({

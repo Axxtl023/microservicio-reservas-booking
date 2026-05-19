@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package booking.finance.v1;
+
+message ProcessPaymentRequest {
+  string idempotency_key = 1;
+  string cliente_id = 2;
+  int64 amount_cents = 3;
+  string currency = 4;
+  string metodo_pago_id = 5;
+  string reserva_id = 6;
+}
+
+message ProcessPaymentResponse {
+  string id_pago = 1;
+  string status = 2;
+  int64 amount_cents = 3;
+  string currency = 4;
+}
+
+message InvoiceLine {
+  string description = 1;
+  int32 quantity = 2;
+  int64 unit_price_cents = 3;
+}
+
+message IssueInvoiceRequest {
+  string idempotency_key = 1;
+  string id_pago = 2;
+  string cliente_id = 3;
+  string reserva_id = 4;
+  repeated InvoiceLine lines = 5;
+  int64 total_cents = 6;
+  string currency = 7;
+}
+
+message IssueInvoiceResponse {
+  string id_factura = 1;
+  string numero_factura = 2;
+  string status = 3;
+  int64 total_cents = 4;
+  string currency = 5;
+}
+
+message RefundPaymentRequest {
+  string idempotency_key = 1;
+  string id_pago = 2;
+  int64 amount_cents = 3;
+  string reason = 4;
+}
+
+message RefundPaymentResponse {
+  string id_reembolso = 1;
+  string id_pago = 2;
+  string status = 3;
+  int64 amount_cents = 4;
+}
+
+service FinanceService {
+  rpc ProcessPayment(ProcessPaymentRequest) returns (ProcessPaymentResponse);
+  rpc IssueInvoice(IssueInvoiceRequest) returns (IssueInvoiceResponse);
+  rpc RefundPayment(RefundPaymentRequest) returns (RefundPaymentResponse);
+}

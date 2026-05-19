@@ -1,21 +1,28 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsIn } from 'class-validator';
+import { IsString, IsIn, IsISO8601, IsOptional } from 'class-validator';
+import { RESERVA_STATUS } from '../constants/reserva-status.constants';
 
 export class CheckoutDto {
   @ApiProperty() @IsString() idCarrito!: string;
+  @ApiProperty() @IsString() metodoPagoId!: string;
+  @ApiProperty({ default: 'USD' }) @IsString() @IsOptional() currency?: string;
+  @ApiProperty({ example: '2026-06-01T10:00:00.000Z' }) @IsISO8601() fechaInicio!: string;
+  @ApiProperty({ example: '2026-06-05T10:00:00.000Z' }) @IsISO8601() fechaFin!: string;
+  @ApiProperty({ required: false }) @IsString() @IsOptional() agenciaId?: string;
 }
 
 export class UpdateEstadoDto {
-  @ApiProperty({ enum: ['PENDIENTE', 'CONFIRMADA', 'CANCELADA', 'COMPLETADA'] })
+  @ApiProperty({ enum: Object.values(RESERVA_STATUS) })
   @IsString()
-  @IsIn(['PENDIENTE', 'CONFIRMADA', 'CANCELADA', 'COMPLETADA'])
+  @IsIn(Object.values(RESERVA_STATUS))
   status!: string;
 }
 
 export class DetalleReservaResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty({ required: false }) idProveedor?: string;
-  @ApiProperty() idExterno!: string;
+  @ApiProperty({ required: false }) idExterno?: string;
+  @ApiProperty({ required: false }) idExternoCodigo?: string;
   @ApiProperty({ required: false }) nombreProveedor?: string;
   @ApiProperty() cantidad!: number;
   @ApiProperty() precioUnitario!: number;
