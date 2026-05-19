@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import type { IReservasService } from './interfaces/i-reservas.service';
 import type { IUnitOfWork } from '../../data-management/interfaces/i-unit-of-work';
 import { IUNIT_OF_WORK } from '../../data-management/interfaces/i-unit-of-work';
@@ -39,5 +39,19 @@ export class ReservasService implements IReservasService {
     await this.getById(id);
     const entity = await this.uow.reservasRepository.updateEstado(id, status);
     return ReservaDataMapper.toDataModel(entity);
+  }
+
+  async cancelarMiReserva(id: string, idCliente: string, rol: string): Promise<ReservaDataModel> {
+    const entity = await this.uow.reservasRepository.findById(id);
+    if (!entity) throw new NotFoundException(`Reserva con id ${id} no encontrada`);
+    if (rol.toLowerCase() !== 'admin' && entity.id_cliente !== idCliente) {
+      throw new ForbiddenException('No tienes permiso para cancelar esta reserva');
+    }
+    const statusUpper = (entity.status ?? '').toUpperCase();
+    if (statusUpper === 'CANCELADA' || statusUpper === 'COMPLETADA') {
+      throw new BadRequestException('La reserva no puede ser cancelada en su estado actual');
+    }
+    const updated = await this.uow.reservasRepository.updateEstado(id, 'CANCELADA');
+    return ReservaDataMapper.toDataModel(updated);
   }
 }

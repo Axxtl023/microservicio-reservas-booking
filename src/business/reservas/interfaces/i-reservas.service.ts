@@ -6,6 +6,7 @@ export interface IReservasService {
   getAllReservasPaginated(filtros: { search?: string; page: number; limit: number }): Promise<{ data: ReservaDataModel[]; total: number; page: number; limit: number }>;
   getById(id: string): Promise<ReservaDataModel>;
   updateEstado(id: string, status: string): Promise<ReservaDataModel>;
+  cancelarMiReserva(id: string, idCliente: string, rol: string): Promise<ReservaDataModel>;
 }
 
 export const IRESERVAS_SERVICE = 'IRESERVAS_SERVICE';

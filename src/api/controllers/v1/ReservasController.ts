@@ -84,6 +84,20 @@ export class ReservasController {
     } catch (error) { this.handleError(error); }
   }
 
+  @Patch(':id/cancelar')
+  @Roles('admin', 'cliente')
+  @ApiOperation({ summary: 'Cancelar una reserva propia (cliente) o cualquier reserva (admin)' })
+  async cancelarReserva(
+    @Param('id') id: string,
+    @Req() req: { user: JwtPayload },
+  ): Promise<ApiResult<ReservaResponseDto>> {
+    try {
+      const idCliente = req.user.idCliente ?? req.user.sub;
+      const result = await this.reservasService.cancelarMiReserva(id, idCliente, req.user.rol);
+      return ApiResult.ok(result as unknown as ReservaResponseDto, 'Reserva cancelada exitosamente');
+    } catch (error) { this.handleError(error); }
+  }
+
   @Patch(':id/estado')
   @Roles('admin')
   @ApiOperation({ summary: 'Actualizar estado de una reserva (admin)' })
