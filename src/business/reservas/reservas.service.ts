@@ -206,6 +206,35 @@ export class ReservasService implements IReservasService {
     if (statusUpper === RESERVA_STATUS.CANCELADA || statusUpper === RESERVA_STATUS.COMPLETADA) {
       throw new BadRequestException('La reserva no puede ser cancelada en su estado actual');
     }
+
+    // Cancelar en proveedor(es) externo(s) antes de marcar local como CANCELADA.
+    // TODO(deuda VEHICLE): detalles_reserva no persiste el ProviderType, así que
+    //   asumimos VEHICLE. Cuando se soporten vuelo/hotel/tour habrá que agregar
+    //   columna `id_externo_type` (ProviderType) y poblarla en checkout.
+    const detalles = await this.uow.detallesReservaRepository.findByReserva(id);
+    const remotes: CreatedRemoteReservation[] = detalles
+      .filter((d) => d.id_externo)
+      .map((d): CreatedRemoteReservation => ({
+        detalleId: d.id,
+        type: ProviderType.VEHICLE,
+        remoteReservationId: d.id_externo as string,
+        providerReservationCode: (d as { id_externo_codigo?: string | null }).id_externo_codigo ?? null,
+      }));
+    if (remotes.length > 0) {
+      await this.cancelRemoteReservations(remotes, 'USER_CANCELLATION', new Map());
+    }
+
+    // TODO(deuda REFUND): reservas no persiste id_pago ni amount_cents del pago,
+    //   y el contrato gRPC de Finanzas no expone GetPaymentByReservaId. Por eso
+    //   no podemos invocar tryRefundPayment aquí sin extender schema + proto.
+    //   Mientras tanto, dejamos rastro en auditoría para que Finanzas procese
+    //   el reembolso manualmente.
+    await this.uow.auditoriaRepository.create({
+      accion: 'MANUAL_REFUND_REQUIRED',
+      tabla: 'reservas',
+      detalles: JSON.stringify({ reservaId: id, idCliente: entity.id_cliente, total: Number(entity.total), reason: 'USER_CANCELLATION' }),
+    });
+
     const updated = await this.uow.reservasRepository.updateEstado(id, RESERVA_STATUS.CANCELADA);
     return ReservaDataMapper.toDataModel(updated);
   }
