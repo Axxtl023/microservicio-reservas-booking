@@ -35,7 +35,7 @@ model carritos {
 model items_carrito {
   id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   id_carrito          String?   @db.Uuid
-  id_producto_externo String?
+  id_producto_externo String?   
   nombre_producto     String?
   cantidad            Int?      @default(1)
   precio_unitario     Decimal   @db.Decimal(10, 2)
