@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package booking.integration.v1;
+
+import "google/protobuf/timestamp.proto";
+
+enum ProviderType {
+  PROVIDER_TYPE_UNSPECIFIED = 0;
+  VEHICLE = 1;
+  FLIGHT = 2;
+  HOTEL = 3;
+  TOUR = 4;
+}
+
+message VehicleDetails {
+  string vehiculo_id = 1;
+  string agencia_id = 2;
+  google.protobuf.Timestamp fecha_inicio = 3;
+  google.protobuf.Timestamp fecha_fin = 4;
+}
+
+message FlightDetails {
+  reserved 1 to 20;
+}
+
+message HotelDetails {
+  reserved 1 to 20;
+}
+
+message BookingItem {
+  string item_id = 1;
+  ProviderType type = 2;
+  string client_id = 3;
+  int64 amount_cents = 4;
+
+  oneof details {
+    VehicleDetails vehicle = 10;
+    FlightDetails flight = 11;
+    HotelDetails hotel = 12;
+  }
+}
+
+message CheckBatchAvailabilityRequest {
+  repeated BookingItem items = 1;
+}
+
+message AvailabilityResult {
+  string item_id = 1;
+  ProviderType type = 2;
+  string provider_item_id = 3;
+  bool available = 4;
+  string reason = 5;
+}
+
+message CheckBatchAvailabilityResponse {
+  bool all_available = 1;
+  repeated AvailabilityResult results = 2;
+}
+
+message CreateRemoteReservationRequest {
+  BookingItem item = 1;
+  string idempotency_key = 2;
+}
+
+message CreateRemoteReservationResponse {
+  ProviderType type = 1;
+  string remote_reservation_id = 2;
+  string provider_reservation_code = 3;
+  string status = 4;
+}
+
+message ConfirmRemoteReservationRequest {
+  ProviderType type = 1;
+  string remote_reservation_id = 2;
+  string idempotency_key = 3;
+}
+
+message ConfirmRemoteReservationResponse {
+  ProviderType type = 1;
+  string remote_reservation_id = 2;
+  string provider_reservation_code = 3;
+  string status = 4;
+}
+
+message CancelRemoteReservationRequest {
+  ProviderType type = 1;
+  string remote_reservation_id = 2;
+  string reason = 3;
+  string idempotency_key = 4;
+}
+
+message CancelRemoteReservationResponse {
+  ProviderType type = 1;
+  string remote_reservation_id = 2;
+  string provider_reservation_code = 3;
+  string status = 4;
+}
+
+service IntegrationService {
+  rpc CheckBatchAvailability(CheckBatchAvailabilityRequest) returns (CheckBatchAvailabilityResponse);
+  rpc CreateRemoteReservation(CreateRemoteReservationRequest) returns (CreateRemoteReservationResponse);
+  rpc ConfirmRemoteReservation(ConfirmRemoteReservationRequest) returns (ConfirmRemoteReservationResponse);
+  rpc CancelRemoteReservation(CancelRemoteReservationRequest) returns (CancelRemoteReservationResponse);
+}

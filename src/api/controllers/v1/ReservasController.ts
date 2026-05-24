@@ -12,6 +12,7 @@ import { JwtAuthGuard } from '../../../business/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
 import type { JwtPayload } from '../../../business/auth/interfaces/jwt-payload.interface';
+import { CheckoutSagaException } from '../../../business/reservas/reservas.service';
 
 @ApiTags('Reservas')
 @ApiBearerAuth('JWT')
@@ -31,12 +32,20 @@ export class ReservasController {
   async checkout(
     @Req() req: { user: JwtPayload },
     @Body() dto: CheckoutDto,
-  ): Promise<ApiResult<ReservaResponseDto>> {
+  ): Promise<{ reserva: ReservaResponseDto; factura: unknown }> {
     try {
       const idCliente = req.user.idCliente ?? req.user.sub;
-      const result = await this.reservasService.checkout(dto.idCarrito, idCliente);
-      return ApiResult.ok(result as unknown as ReservaResponseDto, 'Reserva creada exitosamente');
-    } catch (error) { this.handleError(error); }
+      const result = await this.reservasService.checkout({
+        idCarrito: dto.idCarrito,
+        idCliente,
+        metodoPagoId: dto.metodoPagoId,
+        currency: dto.currency ?? 'USD',
+        fechaInicio: dto.fechaInicio,
+        fechaFin: dto.fechaFin,
+        agenciaId: dto.agenciaId,
+      });
+      return result as unknown as { reserva: ReservaResponseDto; factura: unknown };
+    } catch (error) { this.handleCheckoutError(error); }
   }
 
   @Get('me')
@@ -116,5 +125,17 @@ export class ReservasController {
     const status = error instanceof HttpException ? error.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     const message = error instanceof Error ? error.message : 'Error interno';
     throw new HttpException(ApiResult.fail(message), status);
+  }
+
+  private handleCheckoutError(error: unknown): never {
+    if (error instanceof CheckoutSagaException) {
+      throw new HttpException({
+        success: false,
+        estado: error.estado,
+        mensaje: error.message,
+        reserva_id: error.reservaId,
+      }, error.httpStatus);
+    }
+    this.handleError(error);
   }
 }

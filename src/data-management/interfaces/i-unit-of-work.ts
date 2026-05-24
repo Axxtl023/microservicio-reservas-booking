@@ -27,6 +27,7 @@ export interface IUnitOfWork {
   updateItemCantidadAtomic(idItem: string, cantidad: number): Promise<CarritoConItems>;
   removeItemAtomic(idItem: string): Promise<CarritoConItems>;
   convertirCarritoAReservaAtomic(idCarrito: string, idCliente: string): Promise<ReservaConDetalles>;
+  convertirCarritoAReservaGrpcAtomic(idCarrito: string, idCliente: string): Promise<ReservaConDetalles>;
 }
 
 export const IUNIT_OF_WORK = 'IUNIT_OF_WORK';

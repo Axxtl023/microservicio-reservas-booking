@@ -2,7 +2,8 @@ export interface DetalleReservaDataModel {
   id: string;
   idReserva: string | null;
   idProveedor: string | null;
-  idExterno: string;
+  idExterno: string | null;
+  idExternoCodigo: string | null;
   nombreProveedor: string | null;
   cantidad: number;
   precioUnitario: number;
