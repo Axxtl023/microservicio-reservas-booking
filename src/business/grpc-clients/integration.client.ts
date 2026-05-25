@@ -31,12 +31,34 @@ export interface BookingItem {
     fechaInicio?: ProtoTimestamp;
     fechaFin?: ProtoTimestamp;
   };
-  flight?: Record<string, never>;
+  flight?: {
+    flightClassId: string;
+    passengers: Array<{
+      firstName: string;
+      lastName: string;
+      documentNumber: string;
+      seatNumber?: string;
+    }>;
+  };
   hotel?: {
     alojamientoId?: string;
     habitacionId?: string;
     fechaInicio?: ProtoTimestamp;
     fechaFin?: ProtoTimestamp;
+  };
+  tour?: {
+    slotId: string;
+    attractionId: string;
+    productOptionId: string;
+    passengers: Array<{
+      firstName: string;
+      lastName: string;
+      documentNumber: string;
+      documentType?: string;
+    }>;
+    contactName?: string;
+    contactEmail?: string;
+  };
   };
 }
 

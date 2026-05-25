@@ -19,8 +19,16 @@ message VehicleDetails {
   google.protobuf.Timestamp fecha_fin = 4;
 }
 
+message FlightPassenger {
+  string first_name = 1;
+  string last_name = 2;
+  string document_number = 3;
+  string seat_number = 4;
+}
+
 message FlightDetails {
-  reserved 1 to 20;
+  string flight_class_id = 1;
+  repeated FlightPassenger passengers = 2;
 }
 
 message HotelDetails {
@@ -28,6 +36,22 @@ message HotelDetails {
   string habitacion_id = 2;
   google.protobuf.Timestamp fecha_inicio = 3;
   google.protobuf.Timestamp fecha_fin = 4;
+}
+
+message TourPassenger {
+  string first_name = 1;
+  string last_name = 2;
+  string document_number = 3;
+  string document_type = 4;
+}
+
+message TourDetails {
+  string slot_id = 1;
+  string attraction_id = 2;
+  string product_option_id = 3;
+  repeated TourPassenger passengers = 4;
+  string contact_name = 5;
+  string contact_email = 6;
 }
 
 message BookingItem {
@@ -43,6 +67,7 @@ message BookingItem {
     VehicleDetails vehicle = 10;
     FlightDetails flight = 11;
     HotelDetails hotel = 12;
+    TourDetails tour = 13;
   }
 }
 
