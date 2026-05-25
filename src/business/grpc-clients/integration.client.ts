@@ -32,7 +32,12 @@ export interface BookingItem {
     fechaFin?: ProtoTimestamp;
   };
   flight?: Record<string, never>;
-  hotel?: Record<string, never>;
+  hotel?: {
+    alojamientoId?: string;
+    habitacionId?: string;
+    fechaInicio?: ProtoTimestamp;
+    fechaFin?: ProtoTimestamp;
+  };
 }
 
 export interface AvailabilityResult {

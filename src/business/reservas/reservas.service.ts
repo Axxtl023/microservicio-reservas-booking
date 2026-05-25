@@ -488,7 +488,27 @@ export class ReservasService implements IReservasService {
     }
 
     if (type === ProviderType.FLIGHT) return { ...baseItem, flight: {} };
-    if (type === ProviderType.HOTEL) return { ...baseItem, hotel: {} };
+
+    if (type === ProviderType.HOTEL) {
+      const alojamientoId = readString('alojamientoId', item.id_producto_externo);
+      const habitacionId  = readString('habitacionId');
+      const fechaInicio   = readString('fechaInicio');
+      const fechaFin      = readString('fechaFin');
+      if (!fechaInicio || !fechaFin || !alojamientoId || !habitacionId) {
+        throw new BadRequestException(
+          `Item ${item.id} (hotel) no tiene todos los detalles de reserva configurados (alojamientoId, habitacionId, fechaInicio, fechaFin) en la metadata.`,
+        );
+      }
+      return {
+        ...baseItem,
+        hotel: {
+          alojamientoId,
+          habitacionId,
+          fechaInicio: this.toProtoTimestamp(fechaInicio),
+          fechaFin:    this.toProtoTimestamp(fechaFin),
+        },
+      };
+    }
 
     throw new BadRequestException(`Checkout gRPC todavia no soporta detalles para proveedor ${provider.nombre} (${provider.tipo})`);
   }
