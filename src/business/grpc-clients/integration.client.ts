@@ -41,6 +41,19 @@ export interface BookingItem {
     }>;
   };
   hotel?: Record<string, never>;
+  tour?: {
+    slotId: string;
+    attractionId: string;
+    productOptionId: string;
+    passengers: Array<{
+      firstName: string;
+      lastName: string;
+      documentNumber: string;
+      documentType?: string;
+    }>;
+    contactName?: string;
+    contactEmail?: string;
+  };
 }
 
 export interface AvailabilityResult {

@@ -514,6 +514,50 @@ export class ReservasService implements IReservasService {
       };
     }
     if (type === ProviderType.HOTEL) return { ...baseItem, hotel: {} };
+    if (type === ProviderType.TOUR) {
+      const slotId = readString('slotId');
+      if (!slotId) {
+        throw new BadRequestException(
+          `Item ${item.id} (atracción) no tiene slotId en metadata.`,
+        );
+      }
+      const attractionId = readString('attractionId');
+      if (!attractionId) {
+        throw new BadRequestException(
+          `Item ${item.id} (atracción) no tiene attractionId en metadata.`,
+        );
+      }
+      const productOptionId = readString('productOptionId');
+      if (!productOptionId) {
+        throw new BadRequestException(
+          `Item ${item.id} (atracción) no tiene productOptionId en metadata.`,
+        );
+      }
+      const contactName = readString('contactName');
+      const contactEmail = readString('contactEmail');
+      const rawPassengers = (meta.passengers as Array<Record<string, string>> | undefined) ?? [];
+      if (rawPassengers.length === 0) {
+        throw new BadRequestException(
+          `Item ${item.id} (atracción) no tiene participantes en metadata.`,
+        );
+      }
+      return {
+        ...baseItem,
+        tour: {
+          slotId,
+          attractionId,
+          productOptionId,
+          contactName: contactName ? String(contactName) : undefined,
+          contactEmail: contactEmail ? String(contactEmail) : undefined,
+          passengers: rawPassengers.map((p) => ({
+            firstName: String(p.firstName ?? ''),
+            lastName: String(p.lastName ?? ''),
+            documentNumber: String(p.documentNumber ?? ''),
+            documentType: p.documentType ? String(p.documentType) : undefined,
+          })),
+        },
+      };
+    }
 
     throw new BadRequestException(`Checkout gRPC todavia no soporta detalles para proveedor ${provider.nombre} (${provider.tipo})`);
   }
