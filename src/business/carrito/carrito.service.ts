@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
 import type { ICarritoService } from './interfaces/i-carrito.service';
 import type { IUnitOfWork } from '../../data-management/interfaces/i-unit-of-work';
 import { IUNIT_OF_WORK } from '../../data-management/interfaces/i-unit-of-work';
@@ -17,8 +17,15 @@ export class CarritoService implements ICarritoService {
     return CarritoDataMapper.toDataModel(carrito);
   }
 
-  async addItem(idCliente: string, idProductoExterno: string, nombreProducto: string, cantidad: number, precioUnitario: number): Promise<CarritoDataModel> {
-    const carrito = await this.uow.addItemToCarritoAtomic({ idCliente, idProductoExterno, nombreProducto, cantidad, precioUnitario });
+  async addItem(idCliente: string, idProveedor: string, idProductoExterno: string, nombreProducto: string, cantidad: number, precioUnitario: number, metadata?: Record<string, unknown>): Promise<CarritoDataModel> {
+    const proveedor = await this.uow.proveedoresRepository.findById(idProveedor);
+    if (!proveedor) {
+      throw new BadRequestException(`Proveedor ${idProveedor} no existe`);
+    }
+    if (proveedor.activo === false) {
+      throw new BadRequestException(`Proveedor ${proveedor.nombre} está inactivo y no acepta nuevas reservas`);
+    }
+    const carrito = await this.uow.addItemToCarritoAtomic({ idCliente, idProveedor, idProductoExterno, nombreProducto, cantidad, precioUnitario, metadata });
     return CarritoDataMapper.toDataModel(carrito);
   }
 

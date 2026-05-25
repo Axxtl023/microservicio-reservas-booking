@@ -32,6 +32,9 @@ message BookingItem {
   ProviderType type = 2;
   string client_id = 3;
   int64 amount_cents = 4;
+  // UUID del proveedor en tabla `proveedores` de reservas-booking.
+  // Integration usa este id para enrutar a la implementación correcta.
+  string provider_id = 5;
 
   oneof details {
     VehicleDetails vehicle = 10;
@@ -73,6 +76,8 @@ message ConfirmRemoteReservationRequest {
   ProviderType type = 1;
   string remote_reservation_id = 2;
   string idempotency_key = 3;
+  // UUID del proveedor — necesario para enrutar al cliente correcto.
+  string provider_id = 4;
 }
 
 message ConfirmRemoteReservationResponse {
@@ -87,6 +92,8 @@ message CancelRemoteReservationRequest {
   string remote_reservation_id = 2;
   string reason = 3;
   string idempotency_key = 4;
+  // UUID del proveedor — necesario para enrutar al cliente correcto.
+  string provider_id = 5;
 }
 
 message CancelRemoteReservationResponse {

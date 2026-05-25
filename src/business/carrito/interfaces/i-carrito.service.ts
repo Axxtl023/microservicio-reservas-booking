@@ -2,7 +2,7 @@ import type { CarritoDataModel } from '../../../data-management/models/carrito.d
 
 export interface ICarritoService {
   getCarritoActivo(idCliente: string): Promise<CarritoDataModel>;
-  addItem(idCliente: string, idProductoExterno: string, nombreProducto: string, cantidad: number, precioUnitario: number): Promise<CarritoDataModel>;
+  addItem(idCliente: string, idProveedor: string, idProductoExterno: string, nombreProducto: string, cantidad: number, precioUnitario: number, metadata?: Record<string, unknown>): Promise<CarritoDataModel>;
   updateItemCantidad(idItem: string, cantidad: number): Promise<CarritoDataModel>;
   removeItem(idItem: string): Promise<CarritoDataModel>;
 }

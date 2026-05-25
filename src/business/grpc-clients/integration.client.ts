@@ -24,6 +24,7 @@ export interface BookingItem {
   type: ProviderType;
   clientId: string;
   amountCents: number;
+  providerId: string;
   vehicle?: {
     vehiculoId: string;
     agenciaId?: string;
@@ -65,11 +66,13 @@ interface IntegrationGrpcService {
   confirmRemoteReservation(request: {
     type: ProviderType;
     remoteReservationId: string;
+    providerId: string;
     idempotencyKey: string;
   }): Observable<RemoteReservationMutationResponse>;
   cancelRemoteReservation(request: {
     type: ProviderType;
     remoteReservationId: string;
+    providerId: string;
     reason: string;
     idempotencyKey: string;
   }): Observable<RemoteReservationMutationResponse>;
@@ -114,11 +117,12 @@ export class IntegrationClient implements OnModuleInit {
   async confirmRemoteReservation(
     type: ProviderType,
     remoteReservationId: string,
+    providerId: string,
     idempotencyKey = uuidv4(),
   ): Promise<RemoteReservationMutationResponse> {
     try {
       return await firstValueFrom(
-        this.service.confirmRemoteReservation({ type, remoteReservationId, idempotencyKey }),
+        this.service.confirmRemoteReservation({ type, remoteReservationId, providerId, idempotencyKey }),
       );
     } catch (error) {
       throw this.toDomainError(error);
@@ -128,12 +132,13 @@ export class IntegrationClient implements OnModuleInit {
   async cancelRemoteReservation(
     type: ProviderType,
     remoteReservationId: string,
+    providerId: string,
     reason: string,
     idempotencyKey = uuidv4(),
   ): Promise<RemoteReservationMutationResponse> {
     try {
       return await firstValueFrom(
-        this.service.cancelRemoteReservation({ type, remoteReservationId, reason, idempotencyKey }),
+        this.service.cancelRemoteReservation({ type, remoteReservationId, providerId, reason, idempotencyKey }),
       );
     } catch (error) {
       throw this.toDomainError(error);

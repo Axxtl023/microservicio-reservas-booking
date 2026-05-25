@@ -3,7 +3,7 @@ import type { IProveedoresService } from './interfaces/i-proveedores.service';
 import type { IUnitOfWork } from '../../data-management/interfaces/i-unit-of-work';
 import { IUNIT_OF_WORK } from '../../data-management/interfaces/i-unit-of-work';
 import { ProveedorDataMapper } from '../../data-management/mappers/proveedor.data-mapper';
-import type { ProveedorDataModel } from '../../data-management/models/proveedor.data-model';
+import type { ProveedorDataModel, ProveedorTipo } from '../../data-management/models/proveedor.data-model';
 
 @Injectable()
 export class ProveedoresService implements IProveedoresService {
@@ -14,18 +14,23 @@ export class ProveedoresService implements IProveedoresService {
     return ProveedorDataMapper.toDataModelList(entities);
   }
 
+  async findAllActivosByTipo(tipo: ProveedorTipo): Promise<ProveedorDataModel[]> {
+    const entities = await this.uow.proveedoresRepository.findAllActivosByTipo(tipo);
+    return ProveedorDataMapper.toDataModelList(entities);
+  }
+
   async findById(id: string): Promise<ProveedorDataModel> {
     const entity = await this.uow.proveedoresRepository.findById(id);
     if (!entity) throw new NotFoundException(`Proveedor con id ${id} no encontrado`);
     return ProveedorDataMapper.toDataModel(entity);
   }
 
-  async create(data: { nombre: string; url_api_base: string; activo?: boolean }): Promise<ProveedorDataModel> {
+  async create(data: { nombre: string; tipo: ProveedorTipo; url_api_base: string; activo?: boolean }): Promise<ProveedorDataModel> {
     const entity = await this.uow.proveedoresRepository.create(data);
     return ProveedorDataMapper.toDataModel(entity);
   }
 
-  async update(id: string, data: { nombre?: string; url_api_base?: string; activo?: boolean }): Promise<ProveedorDataModel> {
+  async update(id: string, data: { nombre?: string; tipo?: ProveedorTipo; url_api_base?: string; activo?: boolean }): Promise<ProveedorDataModel> {
     await this.findById(id);
     const entity = await this.uow.proveedoresRepository.update(id, data);
     return ProveedorDataMapper.toDataModel(entity);

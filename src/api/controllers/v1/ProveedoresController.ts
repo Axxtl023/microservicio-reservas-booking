@@ -1,11 +1,12 @@
 import {
   Controller, Get, Post, Put, Delete, Body, Param, Query,
-  Inject, HttpException, HttpStatus, UseGuards,
+  Inject, HttpException, HttpStatus, UseGuards, BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import type { IProveedoresService } from '../../../business/catalogo/interfaces/i-proveedores.service';
 import { IPROVEEDORES_SERVICE } from '../../../business/catalogo/interfaces/i-proveedores.service';
-import { CreateProveedorDto, UpdateProveedorDto, ProveedorResponseDto } from '../../../business/catalogo/dtos/proveedor.dto';
+import { CreateProveedorDto, UpdateProveedorDto, ProveedorResponseDto, ProveedorPublicoDto } from '../../../business/catalogo/dtos/proveedor.dto';
+import { PROVEEDOR_TIPOS, type ProveedorTipo } from '../../../data-management/models/proveedor.data-model';
 import { ApiResponse as ApiResult } from '../../common/api-response';
 import { JwtAuthGuard } from '../../../business/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../guards/roles.guard';
@@ -29,6 +30,28 @@ export class ProveedoresController {
     try {
       const result = await this.proveedoresService.findAll(search);
       return ApiResult.ok(result as unknown as ProveedorResponseDto[], 'Proveedores obtenidos exitosamente');
+    } catch (error) { this.handleError(error); }
+  }
+
+  @Get('publico')
+  @Roles('admin', 'cliente')
+  @ApiOperation({
+    summary: 'Listar proveedores activos por tipo (público para FE — mapea nombre→UUID al agregar al carrito)',
+  })
+  @ApiQuery({ name: 'tipo', required: true, enum: PROVEEDOR_TIPOS })
+  async findActivosByTipo(@Query('tipo') tipo: string): Promise<ApiResult<ProveedorPublicoDto[]>> {
+    try {
+      if (!PROVEEDOR_TIPOS.includes(tipo as ProveedorTipo)) {
+        throw new BadRequestException(`tipo debe ser uno de: ${PROVEEDOR_TIPOS.join(', ')}`);
+      }
+      const proveedores = await this.proveedoresService.findAllActivosByTipo(tipo as ProveedorTipo);
+      const publicos: ProveedorPublicoDto[] = proveedores.map((p) => ({
+        id: p.id,
+        nombre: p.nombre,
+        tipo: p.tipo,
+        activo: p.activo,
+      }));
+      return ApiResult.ok(publicos, 'Proveedores obtenidos exitosamente');
     } catch (error) { this.handleError(error); }
   }
 

@@ -12,10 +12,12 @@ export class CarritoDataMapper {
       items: entity.items_carrito.map((item): ItemCarritoDataModel => ({
         id: item.id,
         idCarrito: item.id_carrito ?? null,
+        idProveedor: (item as { id_proveedor?: string | null }).id_proveedor ?? null,
         idProductoExterno: item.id_producto_externo ?? null,
         nombreProducto: item.nombre_producto ?? null,
         cantidad: item.cantidad ?? 1,
         precioUnitario: Number(item.precio_unitario),
+        metadata: (item as { metadata?: Record<string, unknown> | null }).metadata ?? null,
         createdAt: item.created_at ?? null,
       })),
     };
