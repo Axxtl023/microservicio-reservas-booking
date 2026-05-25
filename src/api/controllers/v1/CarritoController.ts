@@ -45,7 +45,7 @@ export class CarritoController {
   ): Promise<ApiResult<CarritoResponseDto>> {
     try {
       const idCliente = req.user.idCliente ?? req.user.sub;
-      const result = await this.carritoService.addItem(idCliente, dto.idProductoExterno, dto.nombreProducto, dto.cantidad, dto.precioUnitario);
+      const result = await this.carritoService.addItem(idCliente, dto.idProveedor, dto.idProductoExterno, dto.nombreProducto, dto.cantidad, dto.precioUnitario, dto.metadata);
       return ApiResult.ok(result as unknown as CarritoResponseDto, 'Ítem agregado al carrito');
     } catch (error) { this.handleError(error); }
   }

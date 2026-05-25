@@ -17,8 +17,8 @@ export class ItemsCarritoRepository implements IItemsCarritoRepository {
     });
   }
 
-  create(data: { id_carrito: string; id_producto_externo: string; nombre_producto: string; cantidad: number; precio_unitario: number }): Promise<items_carrito> {
-    return this.prisma.items_carrito.create({ data });
+  create(data: { id_carrito: string; id_proveedor: string; id_producto_externo: string; nombre_producto: string; cantidad: number; precio_unitario: number; metadata?: Record<string, unknown> | null }): Promise<items_carrito> {
+    return this.prisma.items_carrito.create({ data: data as never });
   }
 
   updateCantidad(id: string, cantidad: number): Promise<items_carrito> {

@@ -56,8 +56,21 @@ message RefundPaymentResponse {
   int64 amount_cents = 4;
 }
 
+// Permite a reservas-booking resolver el pago asociado a una reserva
+// para iniciar el refund en una cancelación post-checkout.
+message GetPaymentByReservaIdRequest {
+  string reserva_id = 1;
+}
+
+message GetPaymentByReservaIdResponse {
+  string id_pago = 1;
+  string status = 2;
+  int64 amount_cents = 3;
+}
+
 service FinanceService {
   rpc ProcessPayment(ProcessPaymentRequest) returns (ProcessPaymentResponse);
   rpc IssueInvoice(IssueInvoiceRequest) returns (IssueInvoiceResponse);
   rpc RefundPayment(RefundPaymentRequest) returns (RefundPaymentResponse);
+  rpc GetPaymentByReservaId(GetPaymentByReservaIdRequest) returns (GetPaymentByReservaIdResponse);
 }

@@ -1,10 +1,12 @@
 export interface ItemCarritoDataModel {
   id: string;
   idCarrito: string | null;
+  idProveedor: string | null;
   idProductoExterno: string | null;
   nombreProducto: string | null;
   cantidad: number;
   precioUnitario: number;
+  metadata: Record<string, unknown> | null;
   createdAt: Date | null;
 }
 

@@ -46,6 +46,14 @@ export type RefundPaymentResult =
   | (RefundPaymentResponse & { unimplemented?: false })
   | { unimplemented: true; message: string };
 
+export interface GetPaymentByReservaIdResponse {
+  idPago?: string;
+  id_pago?: string;
+  status: string;
+  amountCents?: number;
+  amount_cents?: number;
+}
+
 interface FinanceGrpcService {
   processPayment(request: {
     idempotencyKey: string;
@@ -70,6 +78,7 @@ interface FinanceGrpcService {
     amountCents: number;
     reason: string;
   }): Observable<RefundPaymentResponse>;
+  getPaymentByReservaId(request: { reservaId: string }): Observable<GetPaymentByReservaIdResponse>;
 }
 
 export class FinanceUnavailableError extends Error {}
@@ -156,6 +165,21 @@ export class FinanceClient implements OnModuleInit {
       if (grpcError.code === status.UNIMPLEMENTED) {
         return { unimplemented: true, message: grpcError.message ?? 'RefundPayment no implementado' };
       }
+      throw this.toDomainError(error, FinanceUnavailableError);
+    }
+  }
+
+  async getPaymentByReservaId(reservaId: string): Promise<{ idPago: string; amountCents: number; status: string } | null> {
+    try {
+      const response = await firstValueFrom(this.service.getPaymentByReservaId({ reservaId }));
+      const idPago = response.idPago ?? response.id_pago;
+      const amountCents = response.amountCents ?? response.amount_cents;
+      if (!idPago || typeof amountCents !== 'number') return null;
+      return { idPago, amountCents, status: response.status };
+    } catch (error) {
+      const grpcError = error as { code?: number };
+      // NOT_FOUND es esperado si la reserva no tiene pago todavía
+      if (grpcError.code === status.NOT_FOUND) return null;
       throw this.toDomainError(error, FinanceUnavailableError);
     }
   }

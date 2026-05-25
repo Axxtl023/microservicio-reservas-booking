@@ -19,12 +19,36 @@ message VehicleDetails {
   google.protobuf.Timestamp fecha_fin = 4;
 }
 
+message FlightPassenger {
+  string first_name = 1;
+  string last_name = 2;
+  string document_number = 3;
+  string seat_number = 4;
+}
+
 message FlightDetails {
-  reserved 1 to 20;
+  string flight_class_id = 1;
+  repeated FlightPassenger passengers = 2;
 }
 
 message HotelDetails {
   reserved 1 to 20;
+}
+
+message TourPassenger {
+  string first_name = 1;
+  string last_name = 2;
+  string document_number = 3;
+  string document_type = 4;
+}
+
+message TourDetails {
+  string slot_id = 1;
+  string attraction_id = 2;
+  string product_option_id = 3;
+  repeated TourPassenger passengers = 4;
+  string contact_name = 5;
+  string contact_email = 6;
 }
 
 message BookingItem {
@@ -32,11 +56,15 @@ message BookingItem {
   ProviderType type = 2;
   string client_id = 3;
   int64 amount_cents = 4;
+  // UUID del proveedor en tabla `proveedores` de reservas-booking.
+  // Integration usa este id para enrutar a la implementación correcta.
+  string provider_id = 5;
 
   oneof details {
     VehicleDetails vehicle = 10;
     FlightDetails flight = 11;
     HotelDetails hotel = 12;
+    TourDetails tour = 13;
   }
 }
 
@@ -73,6 +101,8 @@ message ConfirmRemoteReservationRequest {
   ProviderType type = 1;
   string remote_reservation_id = 2;
   string idempotency_key = 3;
+  // UUID del proveedor — necesario para enrutar al cliente correcto.
+  string provider_id = 4;
 }
 
 message ConfirmRemoteReservationResponse {
@@ -87,6 +117,8 @@ message CancelRemoteReservationRequest {
   string remote_reservation_id = 2;
   string reason = 3;
   string idempotency_key = 4;
+  // UUID del proveedor — necesario para enrutar al cliente correcto.
+  string provider_id = 5;
 }
 
 message CancelRemoteReservationResponse {

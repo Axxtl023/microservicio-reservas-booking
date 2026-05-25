@@ -13,16 +13,26 @@ import {
   type CreateRemoteReservationResponse,
 } from '../grpc-clients/integration.client';
 import { RESERVA_STATUS, type ReservaStatus } from './constants/reserva-status.constants';
+import type { ProveedorTipo } from '../../data-management/models/proveedor.data-model';
+import type { ProveedorPrisma } from '../../data-access/repositories/interfaces/i-proveedores.repository';
 import { v4 as uuidv4 } from 'uuid';
 
 interface CreatedRemoteReservation {
   detalleId: string;
   type: ProviderType;
+  providerId: string;
   remoteReservationId: string;
   providerReservationCode: string | null;
 }
 
 type SagaIdempotencyKeys = Map<string, string>;
+
+const providerTypeMap: Record<ProveedorTipo, ProviderType> = {
+  VEHICLE: ProviderType.VEHICLE,
+  FLIGHT: ProviderType.FLIGHT,
+  HOTEL: ProviderType.HOTEL,
+  ATTRACTION: ProviderType.TOUR,
+};
 
 export class CheckoutSagaException extends Error {
   constructor(
@@ -59,18 +69,20 @@ export class ReservasService implements IReservasService {
       throw new BadRequestException('El carrito está vacío');
     }
 
-    const bookingItems = cartItems.map((item): BookingItem => ({
-      itemId: item.id_producto_externo!,
-      type: ProviderType.VEHICLE,
-      clientId: input.idCliente,
-      amountCents: this.decimalToCents(item.precio_unitario),
-      vehicle: {
-        vehiculoId: item.id_producto_externo!,
-        agenciaId: input.agenciaId,
-        fechaInicio: this.toProtoTimestamp(input.fechaInicio),
-        fechaFin: this.toProtoTimestamp(input.fechaFin),
-      },
-    }));
+    const providersById = await this.getProvidersById(
+      cartItems.map((item) => (item as { id_proveedor?: string | null }).id_proveedor ?? null),
+    );
+    const bookingItems = cartItems.map((item): BookingItem => {
+      const providerId = (item as { id_proveedor?: string | null }).id_proveedor;
+      if (!providerId) {
+        throw new BadRequestException(`Item ${item.id} no tiene proveedor asignado`);
+      }
+      const provider = providersById.get(providerId);
+      if (!provider) {
+        throw new BadRequestException(`Proveedor ${providerId} no existe`);
+      }
+      return this.toBookingItem(item, provider, input);
+    });
 
     try {
       this.logger.log(`[${correlationId}] Paso 4: verificando disponibilidad gRPC`);
@@ -96,7 +108,7 @@ export class ReservasService implements IReservasService {
         const item = bookingItems[index];
         const idempotencyKey = this.getSagaIdempotencyKey(idempotencyKeys, `create_remote:${detalle.id}`);
         const remote = await this.integrationClient.createRemoteReservation(item, idempotencyKey);
-        const remoteReservation = this.toCreatedRemoteReservation(detalle.id, remote);
+        const remoteReservation = this.toCreatedRemoteReservation(detalle.id, item.providerId, remote);
         await this.uow.detallesReservaRepository.updateRemoteReservation({
           id: detalle.id,
           id_externo: remoteReservation.remoteReservationId,
@@ -147,7 +159,7 @@ export class ReservasService implements IReservasService {
       this.logger.log(`[${correlationId}] Paso 9: confirmando reservas remotas`);
       for (const remote of createdRemoteReservations) {
         const idempotencyKey = this.getSagaIdempotencyKey(idempotencyKeys, `confirm_remote:${remote.detalleId}`);
-        await this.integrationClient.confirmRemoteReservation(remote.type, remote.remoteReservationId, idempotencyKey);
+        await this.integrationClient.confirmRemoteReservation(remote.type, remote.remoteReservationId, remote.providerId, idempotencyKey);
         confirmedRemoteReservations.push(remote);
       }
     } catch (error) {
@@ -208,35 +220,92 @@ export class ReservasService implements IReservasService {
     }
 
     // Cancelar en proveedor(es) externo(s) antes de marcar local como CANCELADA.
-    // TODO(deuda VEHICLE): detalles_reserva no persiste el ProviderType, así que
-    //   asumimos VEHICLE. Cuando se soporten vuelo/hotel/tour habrá que agregar
-    //   columna `id_externo_type` (ProviderType) y poblarla en checkout.
     const detalles = await this.uow.detallesReservaRepository.findByReserva(id);
+    const providersById = await this.getProvidersById(
+      detalles.map((detalle) => (detalle as { id_proveedor?: string | null }).id_proveedor ?? null),
+    );
     const remotes: CreatedRemoteReservation[] = detalles
       .filter((d) => d.id_externo)
-      .map((d): CreatedRemoteReservation => ({
-        detalleId: d.id,
-        type: ProviderType.VEHICLE,
-        remoteReservationId: d.id_externo as string,
-        providerReservationCode: (d as { id_externo_codigo?: string | null }).id_externo_codigo ?? null,
-      }));
+      .map((d): CreatedRemoteReservation => {
+        const providerId = (d as { id_proveedor?: string | null }).id_proveedor;
+        if (!providerId) {
+          throw new BadRequestException(`Detalle ${d.id} no tiene proveedor asignado`);
+        }
+        const provider = providersById.get(providerId);
+        if (!provider) {
+          throw new BadRequestException(`Proveedor ${providerId} no existe`);
+        }
+        return {
+          detalleId: d.id,
+          type: this.toProviderType(provider.tipo as ProveedorTipo),
+          providerId,
+          remoteReservationId: d.id_externo as string,
+          providerReservationCode: (d as { id_externo_codigo?: string | null }).id_externo_codigo ?? null,
+        };
+      });
     if (remotes.length > 0) {
       await this.cancelRemoteReservations(remotes, 'USER_CANCELLATION', new Map());
     }
 
-    // TODO(deuda REFUND): reservas no persiste id_pago ni amount_cents del pago,
-    //   y el contrato gRPC de Finanzas no expone GetPaymentByReservaId. Por eso
-    //   no podemos invocar tryRefundPayment aquí sin extender schema + proto.
-    //   Mientras tanto, dejamos rastro en auditoría para que Finanzas procese
-    //   el reembolso manualmente.
-    await this.uow.auditoriaRepository.create({
-      accion: 'MANUAL_REFUND_REQUIRED',
-      tabla: 'reservas',
-      detalles: JSON.stringify({ reservaId: id, idCliente: entity.id_cliente, total: Number(entity.total), reason: 'USER_CANCELLATION' }),
-    });
+    // Refund automático: resolvemos el pago vía gRPC GetPaymentByReservaId
+    // y llamamos a RefundPayment. Si el pago no existe (reserva nunca pagada)
+    // o el refund falla, registramos audit pero NO bloqueamos la cancelación.
+    try {
+      const pago = await this.financeClient.getPaymentByReservaId(id);
+      if (pago) {
+        await this.tryRefundPaymentByData(id, pago.idPago, pago.amountCents, 'USER_CANCELLATION', new Map());
+      } else {
+        this.logger.log(`Reserva ${id} no tiene pago asociado en Finanzas — refund no necesario`);
+      }
+    } catch (error) {
+      // Si Finanzas está caído u otro error inesperado, no bloqueamos la cancelación
+      // local pero dejamos audit para reconciliación manual.
+      this.logger.error(`Refund automático falló para reserva ${id}: ${this.errorMessage(error, 'error desconocido')}`);
+      await this.uow.auditoriaRepository.create({
+        accion: 'REFUND_RECONCILIATION_NEEDED',
+        tabla: 'reservas',
+        detalles: JSON.stringify({ reservaId: id, idCliente: entity.id_cliente, error: this.errorMessage(error, 'unknown') }),
+      });
+    }
 
     const updated = await this.uow.reservasRepository.updateEstado(id, RESERVA_STATUS.CANCELADA);
     return ReservaDataMapper.toDataModel(updated);
+  }
+
+  /** Variante de tryRefundPayment para cancelación post-checkout — recibe idPago + amountCents directamente */
+  private async tryRefundPaymentByData(
+    reservaId: string,
+    idPago: string,
+    amountCents: number,
+    reason: string,
+    idempotencyKeys: SagaIdempotencyKeys,
+  ): Promise<void> {
+    try {
+      const refund = await this.financeClient.refundPayment({
+        idPago,
+        amountCents,
+        reason,
+        idempotencyKey: this.getSagaIdempotencyKey(idempotencyKeys, `refund_payment:${reason}:${idPago}`),
+      });
+      if (refund.unimplemented) {
+        // Defensa por las dudas: si Finanzas vuelve a estar UNIMPLEMENTED, dejamos audit
+        this.logger.warn(`RefundPayment todavía UNIMPLEMENTED para pago ${idPago}: ${refund.message}`);
+        await this.uow.auditoriaRepository.create({
+          accion: 'MANUAL_REFUND_REQUIRED',
+          tabla: 'reservas',
+          detalles: JSON.stringify({ reservaId, idPago, amountCents, reason, message: refund.message }),
+        });
+      } else {
+        this.logger.log(`Refund OK para pago ${idPago} (reserva ${reservaId})`);
+      }
+    } catch (error) {
+      this.logger.error(`RefundPayment falló para pago ${idPago}: ${this.errorMessage(error, 'error desconocido')}`);
+      await this.uow.auditoriaRepository.create({
+        accion: 'REFUND_FAILED',
+        tabla: 'reservas',
+        detalles: JSON.stringify({ reservaId, idPago, amountCents, reason, error: this.errorMessage(error, 'unknown') }),
+      });
+    }
   }
 
   private async compensateAfterStep6(
@@ -317,7 +386,7 @@ export class ReservasService implements IReservasService {
     for (const remote of [...reservations].reverse()) {
       try {
         const idempotencyKey = this.getSagaIdempotencyKey(idempotencyKeys, `cancel_remote:${reason}:${remote.detalleId}`);
-        await this.integrationClient.cancelRemoteReservation(remote.type, remote.remoteReservationId, reason, idempotencyKey);
+        await this.integrationClient.cancelRemoteReservation(remote.type, remote.remoteReservationId, remote.providerId, reason, idempotencyKey);
       } catch (error) {
         this.logger.error(`Compensación CancelRemoteReservation falló: ${this.errorMessage(error, 'error desconocido')}`);
       }
@@ -355,6 +424,7 @@ export class ReservasService implements IReservasService {
 
   private toCreatedRemoteReservation(
     detalleId: string,
+    providerId: string,
     response: CreateRemoteReservationResponse,
   ): CreatedRemoteReservation {
     const remoteReservationId = response.remoteReservationId ?? response.remote_reservation_id;
@@ -364,9 +434,143 @@ export class ReservasService implements IReservasService {
     return {
       detalleId,
       type: response.type,
+      providerId,
       remoteReservationId,
       providerReservationCode: response.providerReservationCode ?? response.provider_reservation_code ?? null,
     };
+  }
+
+  private toBookingItem(
+    item: { id: string; id_producto_externo: string | null; precio_unitario: unknown },
+    provider: ProveedorPrisma,
+    input: CheckoutInput,
+  ): BookingItem {
+    if (!item.id_producto_externo) {
+      throw new BadRequestException(`Item ${item.id} no tiene producto externo asignado`);
+    }
+
+    const type = this.toProviderType(provider.tipo as ProveedorTipo);
+    const baseItem = {
+      itemId: item.id_producto_externo,
+      type,
+      clientId: input.idCliente,
+      amountCents: this.decimalToCents(item.precio_unitario),
+      providerId: provider.id,
+    };
+
+    // Metadata por-item (fuente de verdad). Fallback a input.* solo si el
+    // cliente viejo no envió metadata todavía.
+    const meta = ((item as { metadata?: Record<string, unknown> | null }).metadata ?? {}) as Record<string, unknown>;
+    const readString = (key: string, fallback?: string): string | undefined => {
+      const v = meta[key];
+      if (typeof v === 'string' && v.length > 0) return v;
+      return fallback;
+    };
+
+    if (type === ProviderType.VEHICLE) {
+      const agenciaId = readString('agenciaId', input.agenciaId);
+      const fechaInicio = readString('fechaInicio', input.fechaInicio);
+      const fechaFin    = readString('fechaFin',    input.fechaFin);
+      if (!fechaInicio || !fechaFin) {
+        throw new BadRequestException(
+          `Item ${item.id} (vehículo) no tiene fechas de reserva. Configurá fechaInicio/fechaFin en metadata o en el payload.`,
+        );
+      }
+      return {
+        ...baseItem,
+        vehicle: {
+          vehiculoId: item.id_producto_externo,
+          agenciaId,
+          fechaInicio: this.toProtoTimestamp(fechaInicio),
+          fechaFin:    this.toProtoTimestamp(fechaFin),
+        },
+      };
+    }
+
+    if (type === ProviderType.FLIGHT) {
+      const flightClassId = readString('flightClassId');
+      if (!flightClassId) {
+        throw new BadRequestException(
+          `Item ${item.id} (vuelo) no tiene flightClassId en metadata. Configurá flightClassId en el payload.`,
+        );
+      }
+      const rawPassengers = (meta.passengers as Array<Record<string, string>> | undefined) ?? [];
+      if (rawPassengers.length === 0) {
+        throw new BadRequestException(
+          `Item ${item.id} (vuelo) no tiene pasajeros en metadata.`,
+        );
+      }
+      return {
+        ...baseItem,
+        flight: {
+          flightClassId,
+          passengers: rawPassengers.map((p) => ({
+            firstName: String(p.firstName ?? ''),
+            lastName: String(p.lastName ?? ''),
+            documentNumber: String(p.documentNumber ?? ''),
+            seatNumber: p.seatNumber ? String(p.seatNumber) : undefined,
+          })),
+        },
+      };
+    }
+    if (type === ProviderType.HOTEL) return { ...baseItem, hotel: {} };
+    if (type === ProviderType.TOUR) {
+      const slotId = readString('slotId');
+      if (!slotId) {
+        throw new BadRequestException(
+          `Item ${item.id} (atracción) no tiene slotId en metadata.`,
+        );
+      }
+      const attractionId = readString('attractionId');
+      if (!attractionId) {
+        throw new BadRequestException(
+          `Item ${item.id} (atracción) no tiene attractionId en metadata.`,
+        );
+      }
+      const productOptionId = readString('productOptionId');
+      if (!productOptionId) {
+        throw new BadRequestException(
+          `Item ${item.id} (atracción) no tiene productOptionId en metadata.`,
+        );
+      }
+      const contactName = readString('contactName');
+      const contactEmail = readString('contactEmail');
+      const rawPassengers = (meta.passengers as Array<Record<string, string>> | undefined) ?? [];
+      if (rawPassengers.length === 0) {
+        throw new BadRequestException(
+          `Item ${item.id} (atracción) no tiene participantes en metadata.`,
+        );
+      }
+      return {
+        ...baseItem,
+        tour: {
+          slotId,
+          attractionId,
+          productOptionId,
+          contactName: contactName ? String(contactName) : undefined,
+          contactEmail: contactEmail ? String(contactEmail) : undefined,
+          passengers: rawPassengers.map((p) => ({
+            firstName: String(p.firstName ?? ''),
+            lastName: String(p.lastName ?? ''),
+            documentNumber: String(p.documentNumber ?? ''),
+            documentType: p.documentType ? String(p.documentType) : undefined,
+          })),
+        },
+      };
+    }
+
+    throw new BadRequestException(`Checkout gRPC todavia no soporta detalles para proveedor ${provider.nombre} (${provider.tipo})`);
+  }
+
+  private toProviderType(tipo: ProveedorTipo): ProviderType {
+    return providerTypeMap[tipo] ?? ProviderType.PROVIDER_TYPE_UNSPECIFIED;
+  }
+
+  private async getProvidersById(providerIds: Array<string | null>): Promise<Map<string, ProveedorPrisma>> {
+    const uniqueProviderIds = [...new Set(providerIds.filter((id): id is string => Boolean(id)))];
+    if (uniqueProviderIds.length === 0) return new Map();
+    const providers = await this.uow.proveedoresRepository.findManyByIds(uniqueProviderIds);
+    return new Map(providers.map((provider) => [provider.id, provider]));
   }
 
   private getIdPago(payment: ProcessPaymentResponse | null): string {

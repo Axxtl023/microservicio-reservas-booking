@@ -30,7 +30,7 @@ export class UnitOfWork implements IUnitOfWork {
   ) {}
 
   async addItemToCarritoAtomic(data: AddItemAtomicData): Promise<CarritoConItems> {
-    const { idCliente, idProductoExterno, nombreProducto, cantidad, precioUnitario } = data;
+    const { idCliente, idProveedor, idProductoExterno, nombreProducto, cantidad, precioUnitario, metadata } = data;
 
     return this.prisma.$transaction(async (tx) => {
       let carrito = await tx.carritos.findFirst({
@@ -56,7 +56,15 @@ export class UnitOfWork implements IUnitOfWork {
         });
       } else {
         await tx.items_carrito.create({
-          data: { id_carrito: carrito.id, id_producto_externo: idProductoExterno, nombre_producto: nombreProducto, cantidad, precio_unitario: precioUnitario },
+          data: {
+            id_carrito: carrito.id,
+            id_proveedor: idProveedor,
+            id_producto_externo: idProductoExterno,
+            nombre_producto: nombreProducto,
+            cantidad,
+            precio_unitario: precioUnitario,
+            metadata: metadata ?? null,
+          } as never,
         });
       }
 
@@ -157,13 +165,20 @@ export class UnitOfWork implements IUnitOfWork {
 
       for (const item of items) {
         if (!item.id_producto_externo) continue;
+        const idProveedor = (item as { id_proveedor?: string | null }).id_proveedor;
+        if (!idProveedor) {
+          throw new InternalServerErrorException(
+            `Item ${item.id} no tiene proveedor asignado. Limpiá el carrito y agregá los productos de nuevo.`,
+          );
+        }
         await tx.detalles_reserva.create({
           data: {
             id_reserva: reserva.id,
+            id_proveedor: idProveedor,
             id_externo: item.id_producto_externo,
             cantidad: item.cantidad ?? 1,
             precio_unitario: item.precio_unitario,
-          },
+          } as never,
         });
       }
 
@@ -205,9 +220,16 @@ export class UnitOfWork implements IUnitOfWork {
 
       for (const item of items) {
         if (!item.id_producto_externo) continue;
+        const idProveedor = (item as { id_proveedor?: string | null }).id_proveedor;
+        if (!idProveedor) {
+          throw new InternalServerErrorException(
+            `Item ${item.id} no tiene proveedor asignado. Limpiá el carrito y agregá los productos de nuevo.`,
+          );
+        }
         await tx.detalles_reserva.create({
           data: {
             id_reserva: reserva.id,
+            id_proveedor: idProveedor,
             id_externo: null,
             cantidad: item.cantidad ?? 1,
             precio_unitario: item.precio_unitario,

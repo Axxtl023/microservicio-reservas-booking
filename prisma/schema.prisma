@@ -17,10 +17,12 @@ model categorias {
 model proveedores {
   id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nombre           String             @db.VarChar(100)
+  tipo             String             @db.VarChar(20)
   url_api_base     String
   activo           Boolean?           @default(true)
   created_at       DateTime?          @default(now()) @db.Timestamptz(6)
   detalles_reserva detalles_reserva[]
+  items_carrito    items_carrito[]
 }
 
 model carritos {
@@ -33,14 +35,19 @@ model carritos {
 }
 
 model items_carrito {
-  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_carrito          String?   @db.Uuid
-  id_producto_externo String?   
+  id                  String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_carrito          String?      @db.Uuid
+  id_proveedor        String?      @db.Uuid
+  id_producto_externo String?
   nombre_producto     String?
-  cantidad            Int?      @default(1)
-  precio_unitario     Decimal   @db.Decimal(10, 2)
-  created_at          DateTime? @default(now()) @db.Timestamptz(6)
-  carritos            carritos? @relation(fields: [id_carrito], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  cantidad            Int?         @default(1)
+  precio_unitario     Decimal      @db.Decimal(10, 2)
+  metadata            Json?
+  created_at          DateTime?    @default(now()) @db.Timestamptz(6)
+  carritos            carritos?    @relation(fields: [id_carrito], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  proveedores         proveedores? @relation(fields: [id_proveedor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id_proveedor])
 }
 
 model reservas {

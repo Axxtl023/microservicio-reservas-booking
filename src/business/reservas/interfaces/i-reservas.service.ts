@@ -6,8 +6,12 @@ export interface CheckoutInput {
   idCliente: string;
   metodoPagoId: string;
   currency: string;
-  fechaInicio: string;
-  fechaFin: string;
+  // Los siguientes campos son DEPRECATED — se mantienen opcionales para
+  // retrocompat del cliente viejo. La fuente de verdad son los `metadata`
+  // por-item del carrito. Si vienen acá, se usan solo como fallback cuando
+  // un item no tiene metadata.
+  fechaInicio?: string;
+  fechaFin?: string;
   agenciaId?: string;
 }
 

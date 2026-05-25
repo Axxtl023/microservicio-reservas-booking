@@ -8,10 +8,12 @@ import type { IAuditoriaRepository } from '../../data-access/repositories/interf
 
 export interface AddItemAtomicData {
   idCliente: string;
+  idProveedor: string;
   idProductoExterno: string;
   nombreProducto: string;
   cantidad: number;
   precioUnitario: number;
+  metadata?: Record<string, unknown>;
 }
 
 export interface IUnitOfWork {
