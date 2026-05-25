@@ -59,7 +59,6 @@ export interface BookingItem {
     contactName?: string;
     contactEmail?: string;
   };
-  };
 }
 
 export interface AvailabilityResult {
