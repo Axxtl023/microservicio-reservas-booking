@@ -19,8 +19,16 @@ message VehicleDetails {
   google.protobuf.Timestamp fecha_fin = 4;
 }
 
+message FlightPassenger {
+  string first_name = 1;
+  string last_name = 2;
+  string document_number = 3;
+  string seat_number = 4;
+}
+
 message FlightDetails {
-  reserved 1 to 20;
+  string flight_class_id = 1;
+  repeated FlightPassenger passengers = 2;
 }
 
 message HotelDetails {

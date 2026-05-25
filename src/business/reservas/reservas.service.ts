@@ -487,7 +487,32 @@ export class ReservasService implements IReservasService {
       };
     }
 
-    if (type === ProviderType.FLIGHT) return { ...baseItem, flight: {} };
+    if (type === ProviderType.FLIGHT) {
+      const flightClassId = readString('flightClassId');
+      if (!flightClassId) {
+        throw new BadRequestException(
+          `Item ${item.id} (vuelo) no tiene flightClassId en metadata. Configurá flightClassId en el payload.`,
+        );
+      }
+      const rawPassengers = (meta.passengers as Array<Record<string, string>> | undefined) ?? [];
+      if (rawPassengers.length === 0) {
+        throw new BadRequestException(
+          `Item ${item.id} (vuelo) no tiene pasajeros en metadata.`,
+        );
+      }
+      return {
+        ...baseItem,
+        flight: {
+          flightClassId,
+          passengers: rawPassengers.map((p) => ({
+            firstName: String(p.firstName ?? ''),
+            lastName: String(p.lastName ?? ''),
+            documentNumber: String(p.documentNumber ?? ''),
+            seatNumber: p.seatNumber ? String(p.seatNumber) : undefined,
+          })),
+        },
+      };
+    }
     if (type === ProviderType.HOTEL) return { ...baseItem, hotel: {} };
 
     throw new BadRequestException(`Checkout gRPC todavia no soporta detalles para proveedor ${provider.nombre} (${provider.tipo})`);

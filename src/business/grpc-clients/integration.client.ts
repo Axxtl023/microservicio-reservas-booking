@@ -31,7 +31,15 @@ export interface BookingItem {
     fechaInicio?: ProtoTimestamp;
     fechaFin?: ProtoTimestamp;
   };
-  flight?: Record<string, never>;
+  flight?: {
+    flightClassId: string;
+    passengers: Array<{
+      firstName: string;
+      lastName: string;
+      documentNumber: string;
+      seatNumber?: string;
+    }>;
+  };
   hotel?: Record<string, never>;
 }
 
