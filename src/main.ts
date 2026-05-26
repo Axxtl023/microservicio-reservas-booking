@@ -8,7 +8,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: ['http://localhost:5173', 'https://booking-frontend-ashy.vercel.app'],
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (/^http:\/\/localhost:\d+$/.test(origin)) return cb(null, true);
+      if (origin === 'https://booking-frontend-ashy.vercel.app') return cb(null, true);
+      return cb(null, false);
+    },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
     credentials: true,
   });
