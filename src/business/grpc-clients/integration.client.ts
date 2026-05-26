@@ -40,7 +40,12 @@ export interface BookingItem {
       seatNumber?: string;
     }>;
   };
-  hotel?: Record<string, never>;
+  hotel?: {
+    alojamientoId?: string;
+    habitacionId?: string;
+    fechaInicio?: ProtoTimestamp;
+    fechaFin?: ProtoTimestamp;
+  };
   tour?: {
     slotId: string;
     attractionId: string;
