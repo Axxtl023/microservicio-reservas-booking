@@ -13,8 +13,6 @@ import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
 
 @ApiTags('Proveedores')
-@ApiBearerAuth('JWT')
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('api/v1/proveedores')
 export class ProveedoresController {
   constructor(
@@ -23,7 +21,9 @@ export class ProveedoresController {
   ) {}
 
   @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Listar proveedores con búsqueda opcional (admin)' })
   @ApiQuery({ name: 'search', required: false })
   async findAll(@Query('search') search?: string): Promise<ApiResult<ProveedorResponseDto[]>> {
@@ -34,7 +34,6 @@ export class ProveedoresController {
   }
 
   @Get('publico')
-  @Roles('admin', 'cliente')
   @ApiOperation({
     summary: 'Listar proveedores activos por tipo (público para FE — mapea nombre→UUID al agregar al carrito)',
   })
@@ -56,7 +55,9 @@ export class ProveedoresController {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Obtener proveedor por ID (admin)' })
   async findById(@Param('id') id: string): Promise<ApiResult<ProveedorResponseDto>> {
     try {
@@ -66,7 +67,9 @@ export class ProveedoresController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Crear proveedor (admin)' })
   @ApiBody({ type: CreateProveedorDto })
   async create(@Body() dto: CreateProveedorDto): Promise<ApiResult<ProveedorResponseDto>> {
@@ -77,7 +80,9 @@ export class ProveedoresController {
   }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Actualizar proveedor (admin)' })
   @ApiBody({ type: UpdateProveedorDto })
   async update(@Param('id') id: string, @Body() dto: UpdateProveedorDto): Promise<ApiResult<ProveedorResponseDto>> {
@@ -88,7 +93,9 @@ export class ProveedoresController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Eliminar proveedor (admin)' })
   async delete(@Param('id') id: string): Promise<ApiResult<null>> {
     try {
