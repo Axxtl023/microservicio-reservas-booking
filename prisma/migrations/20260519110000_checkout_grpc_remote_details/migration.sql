@@ -1,6 +1,6 @@
 -- Migración idempotente — segura para correr múltiples veces sin romper.
 -- Separamos en 2 statements: DROP NOT NULL es idempotente nativo en Postgres,
--- ADD COLUMN necesita IF NOT EXISTS para serlo.
+-- ADD COLUMN necesita IF NOT EXISTS para serlo fix.
 
 ALTER TABLE "detalles_reserva" ALTER COLUMN "id_externo" DROP NOT NULL;
 
