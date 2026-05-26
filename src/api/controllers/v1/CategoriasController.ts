@@ -10,6 +10,7 @@ import { ApiResponse as ApiResult } from '../../common/api-response';
 import { JwtAuthGuard } from '../../../business/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
+import { Public } from '../../decorators/public.decorator';
 
 @ApiTags('Categorías')
 @Controller('api/v1/categorias')
@@ -20,6 +21,7 @@ export class CategoriasController {
   ) {}
 
   @Get()
+  @Public()
   @ApiOperation({ summary: 'Listar todas las categorías (público)' })
   @ApiResponse({ status: 200, type: [CategoriaResponseDto] })
   async findAll(): Promise<ApiResult<CategoriaResponseDto[]>> {
@@ -30,6 +32,7 @@ export class CategoriasController {
   }
 
   @Get(':id')
+  @Public()
   @ApiOperation({ summary: 'Obtener categoría por ID' })
   async findById(@Param('id') id: string): Promise<ApiResult<CategoriaResponseDto>> {
     try {

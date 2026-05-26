@@ -11,6 +11,7 @@ import { ApiResponse as ApiResult } from '../../common/api-response';
 import { JwtAuthGuard } from '../../../business/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
+import { Public } from '../../decorators/public.decorator';
 
 @ApiTags('Proveedores')
 @Controller('api/v1/proveedores')
@@ -34,6 +35,7 @@ export class ProveedoresController {
   }
 
   @Get('publico')
+  @Public()
   @ApiOperation({
     summary: 'Listar proveedores activos por tipo (público para FE — mapea nombre→UUID al agregar al carrito)',
   })

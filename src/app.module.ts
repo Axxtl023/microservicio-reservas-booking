@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { JwtAuthGuard } from './business/auth/guards/jwt-auth.guard';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 
@@ -103,6 +104,7 @@ import { AuditoriaController } from './api/controllers/v1/AuditoriaController';
 
     // ── Auth ──────────────────────────────────────────────────────────────────
     JwtStrategy,
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
 
     // ── Global Interceptors ───────────────────────────────────────────────────
     { provide: APP_INTERCEPTOR, useClass: AuditoriaInterceptor },
