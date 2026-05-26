@@ -6,8 +6,8 @@ export class CheckoutDto {
   @ApiProperty() @IsString() idCarrito!: string;
   @ApiProperty() @IsString() metodoPagoId!: string;
   @ApiProperty({ default: 'USD' }) @IsString() @IsOptional() currency?: string;
-  @ApiProperty({ example: '2026-06-01T10:00:00.000Z' }) @IsISO8601() fechaInicio!: string;
-  @ApiProperty({ example: '2026-06-05T10:00:00.000Z' }) @IsISO8601() fechaFin!: string;
+  @ApiProperty({ required: false, example: '2026-06-01T10:00:00.000Z' }) @IsISO8601() @IsOptional() fechaInicio?: string;
+  @ApiProperty({ required: false, example: '2026-06-05T10:00:00.000Z' }) @IsISO8601() @IsOptional() fechaFin?: string;
   @ApiProperty({ required: false }) @IsString() @IsOptional() agenciaId?: string;
 }
 
