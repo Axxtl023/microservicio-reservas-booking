@@ -1,5 +1,7 @@
-import { Injectable, Inject, NotFoundException, ForbiddenException, BadRequestException, Logger, HttpStatus } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, ForbiddenException, BadRequestException, Logger, HttpStatus, Optional } from '@nestjs/common';
 import type { CheckoutInput, CheckoutResult, IReservasService } from './interfaces/i-reservas.service';
+import { CheckoutV2Service } from './checkout-v2.service';
+import { CancelV2Service } from './cancel-v2.service';
 import type { IUnitOfWork } from '../../data-management/interfaces/i-unit-of-work';
 import { IUNIT_OF_WORK } from '../../data-management/interfaces/i-unit-of-work';
 import { ReservaDataMapper } from '../../data-management/mappers/reserva.data-mapper';
@@ -53,9 +55,21 @@ export class ReservasService implements IReservasService {
     @Inject(IUNIT_OF_WORK) private readonly uow: IUnitOfWork,
     private readonly integrationClient: IntegrationClient,
     private readonly financeClient: FinanceClient,
+    @Optional() private readonly checkoutV2?: CheckoutV2Service,
+    @Optional() private readonly cancelV2?: CancelV2Service,
   ) {}
 
   async checkout(input: CheckoutInput): Promise<CheckoutResult> {
+    // Dispatcher V1 / V2 según env. Default v1 (seguro).
+    const mode = (process.env.CHECKOUT_MODE ?? 'v1').toLowerCase();
+    if (mode === 'v2' && this.checkoutV2) {
+      this.logger.log(`Checkout en modo V2 (EventBus) para carrito ${input.idCarrito}`);
+      return this.checkoutV2.execute(input);
+    }
+    return this.checkoutV1Sync(input);
+  }
+
+  private async checkoutV1Sync(input: CheckoutInput): Promise<CheckoutResult> {
     const correlationId = input.idCarrito;
     this.logger.log(`[${correlationId}] Checkout iniciado`);
 
@@ -209,6 +223,14 @@ export class ReservasService implements IReservasService {
   }
 
   async cancelarMiReserva(id: string, idCliente: string, rol: string): Promise<ReservaDataModel> {
+    const mode = (process.env.CHECKOUT_MODE ?? 'v1').toLowerCase();
+    if (mode === 'v2' && this.cancelV2) {
+      return this.cancelV2.execute(id, idCliente, rol);
+    }
+    return this.cancelarMiReservaV1Sync(id, idCliente, rol);
+  }
+
+  private async cancelarMiReservaV1Sync(id: string, idCliente: string, rol: string): Promise<ReservaDataModel> {
     const entity = await this.uow.reservasRepository.findById(id);
     if (!entity) throw new NotFoundException(`Reserva con id ${id} no encontrada`);
     if (rol.toLowerCase() !== 'admin' && entity.id_cliente !== idCliente) {

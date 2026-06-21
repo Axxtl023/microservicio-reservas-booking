@@ -1,10 +1,35 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from './business/auth/guards/jwt-auth.guard';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 
 import { PrismaService } from './common/prisma/prisma.service';
+import { EventBusModule } from './business/event-bus/event-bus.module';
+import { TraceMiddleware } from './common/observability/trace.middleware';
+import { HealthController } from './api/controllers/v1/HealthController';
+import { MetricsController } from './api/controllers/v1/MetricsController';
+import {
+  IntegrationCreatedConsumer,
+  IntegrationCreateFailedConsumer,
+  IntegrationConfirmedConsumer,
+  IntegrationConfirmFailedConsumer,
+  IntegrationCancelledConsumer,
+  IntegrationCancelFailedConsumer,
+} from './business/event-bus/consumers/integration-consumers';
+import {
+  PaymentProcessedConsumer,
+  PaymentFailedConsumer,
+  PaymentRefundedConsumer,
+  PaymentRefundFailedConsumer,
+} from './business/event-bus/consumers/payment-consumers';
+import {
+  InvoiceIssuedConsumer,
+  InvoiceFailedConsumer,
+  InvoiceVoidedConsumer,
+} from './business/event-bus/consumers/invoice-consumers';
+import { CheckoutV2Service } from './business/reservas/checkout-v2.service';
+import { CancelV2Service } from './business/reservas/cancel-v2.service';
 
 // ─── Data Access ───────────────────────────────────────────────────────────────
 import { CategoriasRepository } from './data-access/repositories/categorias.repository';
@@ -54,6 +79,7 @@ import { DashboardController } from './api/controllers/v1/DashboardController';
 @Module({
   imports: [
     GrpcClientsModule,
+    EventBusModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       useFactory: () => ({
@@ -70,6 +96,8 @@ import { DashboardController } from './api/controllers/v1/DashboardController';
     ReservasController,
     AuditoriaController,
     DashboardController,
+    HealthController,
+    MetricsController,
   ],
   providers: [
     PrismaService,
@@ -103,6 +131,8 @@ import { DashboardController } from './api/controllers/v1/DashboardController';
     { provide: ICARRITO_SERVICE, useExisting: CarritoService },
     ReservasService,
     { provide: IRESERVAS_SERVICE, useExisting: ReservasService },
+    CheckoutV2Service,
+    CancelV2Service,
     AuditoriaService,
     { provide: IAUDITORIA_SERVICE, useExisting: AuditoriaService },
     DashboardService,
@@ -114,6 +144,25 @@ import { DashboardController } from './api/controllers/v1/DashboardController';
 
     // ── Global Interceptors ───────────────────────────────────────────────────
     { provide: APP_INTERCEPTOR, useClass: AuditoriaInterceptor },
+
+    // ── V2 EventBus consumers (13 total) ──────────────────────────────────────
+    IntegrationCreatedConsumer,
+    IntegrationCreateFailedConsumer,
+    IntegrationConfirmedConsumer,
+    IntegrationConfirmFailedConsumer,
+    IntegrationCancelledConsumer,
+    IntegrationCancelFailedConsumer,
+    PaymentProcessedConsumer,
+    PaymentFailedConsumer,
+    PaymentRefundedConsumer,
+    PaymentRefundFailedConsumer,
+    InvoiceIssuedConsumer,
+    InvoiceFailedConsumer,
+    InvoiceVoidedConsumer,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(TraceMiddleware).forRoutes('*');
+  }
+}

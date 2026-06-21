@@ -83,3 +83,75 @@ model auditoria {
   ip         String?  @db.VarChar(50)
   fecha      DateTime @default(now()) @db.Timestamptz(6)
 }
+
+// ── V2 EventBus ─────────────────────────────────────────────────────────────
+// Tablas nuevas para el orquestador V2 (saga choreography por RabbitMQ).
+// Conviven con la BD de Supabase existente — atomicidad outbox+negocio en
+// la misma transacción.
+
+model event_outbox {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id       String    @unique @db.Uuid
+  event_type     String    @db.VarChar(100)
+  exchange       String    @db.VarChar(100)
+  routing_key    String    @db.VarChar(100)
+  payload        Json
+  correlation_id String?   @db.Uuid
+  aggregate_id   String?   @db.VarChar(100)
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  published_at   DateTime? @db.Timestamptz(6)
+  attempts       Int       @default(0)
+  last_error     String?
+
+  @@index([created_at], map: "idx_event_outbox_unpublished")
+  @@index([correlation_id], map: "idx_event_outbox_correlation")
+  @@index([aggregate_id], map: "idx_event_outbox_aggregate")
+}
+
+model processed_messages {
+  event_id     String   @id @db.Uuid
+  event_type   String   @db.VarChar(100)
+  processed_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+// Saga state machine — único de este repo.
+// Una row por checkout/cancelación. `current_step` avanza linealmente.
+// El consumer actualiza con `update WHERE current_step = expected_from` para
+// evitar races. `pending_command_id` se setea al publicar un comando y se
+// matchea al recibir el evento de respuesta via causationId.
+model saga_state {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reserva_id             String    @unique @db.Uuid
+  saga_type              String    @db.VarChar(30) // CHECKOUT | CANCELLATION
+  current_step           String    @db.VarChar(50)
+  total_items            Int       @default(0)
+  items_created          Int       @default(0)
+  items_confirmed        Int       @default(0)
+  items_cancelled        Int       @default(0)
+  pending_command_id     String?   @db.Uuid
+  payment_id             String?   @db.Uuid
+  invoice_id             String?   @db.Uuid
+  last_error             String?
+  context                Json?     // payload extra (metodoPagoId, currency, etc)
+  correlation_id         String    @db.Uuid
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  completed_at           DateTime? @db.Timestamptz(6)
+
+  @@index([current_step], map: "idx_saga_state_step")
+  @@index([updated_at], map: "idx_saga_state_updated")
+  @@index([pending_command_id], map: "idx_saga_state_pending_cmd")
+}
+
+// Idempotencia HTTP capa 1 — único de este repo.
+// El cliente puede mandar `Idempotency-Key` header. Si el mismo header llega 2
+// veces, la 2ª devuelve la respuesta cacheada de la 1ª (no re-procesa).
+model idempotency_keys {
+  key          String   @id @db.VarChar(255)
+  endpoint     String   @db.VarChar(100)
+  response     Json
+  status_code  Int
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([created_at], map: "idx_idempotency_keys_created")
+}

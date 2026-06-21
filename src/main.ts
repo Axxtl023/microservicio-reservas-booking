@@ -3,9 +3,11 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { StructuredLogger } from './common/observability/structured-logger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useLogger(new StructuredLogger());
 
   app.enableCors({
     origin: (origin, cb) => {
