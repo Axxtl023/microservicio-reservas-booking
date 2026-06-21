@@ -1,0 +1,23 @@
+services:
+  # RabbitMQ compartido para todos los microservicios en dev local.
+  # En producción usar CloudAMQP (o equivalente managed).
+  # La BD de reservas-booking ya está en Supabase — NO se levanta acá.
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: reservas-booking-rabbitmq
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # Management UI (http://localhost:15672 admin/admin)
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  rabbitmq_data:
