@@ -63,6 +63,13 @@ export class IntegrationCreatedConsumer {
 
       await this.prisma.$transaction(async (tx) => {
         await this.inbox.markProcessedTx(tx, eventId, eventType);
+        // Persistir el ID externo del proveedor para que cancel pueda referenciarlo.
+        if (payload.externalId) {
+          await tx.detalles_reserva.update({
+            where: { id: payload.itemId },
+            data: { id_externo: payload.externalId, id_externo_codigo: payload.externalCode ?? null },
+          });
+        }
         const { created, total } = await this.saga.incrementItemsCreatedTx(tx, saga.id);
 
         if (created >= total) {
@@ -316,12 +323,14 @@ export class IntegrationCancelFailedConsumer {
       const errMsg = `MANUAL_INTERVENTION_NEEDED: cancel failed ${payload.error.code} ${payload.error.message}`;
       await this.prisma.$transaction(async (tx) => {
         await this.inbox.markProcessedTx(tx, eventId, eventType);
-        // Solo registramos el error en la saga; no avanzamos el estado porque
-        // requiere intervención manual (no podemos auto-resolver doble booking).
         await tx.saga_state.update({
           where: { id: saga.id },
           data: { last_error: errMsg, updated_at: new Date() },
         });
+        // Contar el item como "procesado" aunque haya fallado, para que
+        // waitForAllCancelled() pueda completar en vez de timeout.
+        // El last_error queda registrado para reconciliación manual.
+        await this.saga.incrementItemsCancelledTx(tx, saga.id);
       });
       this.logger.error(`[integration.cancel_failed] saga ${saga.id} ${errMsg}`);
       this.metrics.incrementFailed(eventType);
